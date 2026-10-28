@@ -4,6 +4,7 @@
 local state = require "jmist.state"
 local icons = require "jmist.icons"
 local c = require "jmist.ui.components"
+local table_view = require "jmist.ui.table"
 local util = require "jmist.util"
 
 local M = {}
@@ -13,21 +14,6 @@ M.LIST_OFFSET = 8
 local VERSION_W = 13
 local DOWNLOADS_W = 9
 local ACTION_W = 11
-
-local SELECTION_HL = {
-  JmistAccent = "JmistSelIcon",
-  JmistMuted = "JmistSelMuted",
-  JmistValue = "JmistSelValue",
-  JmistOk = "JmistSelDirect",
-}
-
-local function column_hl(selected, base)
-  if not selected then
-    return base or "Normal"
-  end
-
-  return SELECTION_HL[base] or "JmistSelText"
-end
 
 local function results_header(name_width)
   return {
@@ -41,21 +27,23 @@ local function results_header(name_width)
   }
 end
 
-local function result_line(result, index, selected, name_width)
+local function result_line(result, index, mode, name_width)
   local action = result.installed and "installed" or "install"
   local action_hl = result.installed and "JmistOk" or "JmistAccent"
   local name = c.ellipsize(result.group .. ":" .. result.artifact, name_width)
 
   local line = {
-    { selected and icons.chevron_right or icons.package, column_hl(selected, nil) },
-    { " ", column_hl(selected, nil) },
-    { c.fit(name, name_width), column_hl(selected, nil) },
-    { " ", column_hl(selected, nil) },
-    { c.fit(result.version, VERSION_W), column_hl(selected, "JmistValue") },
-    { c.fit(result.downloads, DOWNLOADS_W), column_hl(selected, "JmistMuted") },
-    { " ", column_hl(selected, nil) },
-    { c.fit(" " .. action, ACTION_W), column_hl(selected, action_hl) },
+    { table_view.icon(mode), table_view.icon_hl(mode) },
+    { " ", table_view.hl(mode, nil) },
+    { c.fit(name, name_width), table_view.hl(mode, nil) },
+    { " ", table_view.hl(mode, nil) },
+    { c.fit(result.version, VERSION_W), table_view.hl(mode, "JmistValue") },
+    { c.fit(result.downloads, DOWNLOADS_W), table_view.hl(mode, "JmistMuted") },
+    { " ", table_view.hl(mode, nil) },
+    { c.fit(" " .. action, ACTION_W), table_view.hl(mode, action_hl) },
   }
+
+  local hover = table_view.hover("search", index)
 
   for fragment_index, fragment in ipairs(line) do
     fragment[3] = {
@@ -66,6 +54,7 @@ local function result_line(result, index, selected, name_width)
           require("jmist.actions").select_result(index)
         end
       end,
+      hover = hover,
     }
   end
 
@@ -121,7 +110,11 @@ M.lines = function()
   lines[#lines + 1] = { { "╰" .. string.rep("─", width - 2) .. "╯", "JmistInputBorder" } }
   lines[#lines + 1] = c.blank(width)
   lines[#lines + 1] = results_header(name_width)
-  lines[#lines + 1] = c.separator(width)
+  lines[#lines + 1] = table_view.separator(width, {
+    kind = "search",
+    can_prev = scroll > 0,
+    can_next = scroll + visible < total,
+  })
 
   if total == 0 then
     lines[#lines + 1] = {
@@ -130,7 +123,8 @@ M.lines = function()
     }
   else
     for index = scroll + 1, math.min(total, scroll + visible) do
-      lines[#lines + 1] = result_line(results[index], index, index == selected, name_width)
+      local mode = table_view.mode("search", index, index == selected)
+      lines[#lines + 1] = result_line(results[index], index, mode, name_width)
     end
   end
 

@@ -8,9 +8,11 @@ Central search, and build output.
 
 ## Requirements
 
-- Neovim 0.9+
+- Neovim 0.10+
 - [volt.nvim](https://github.com/nvchad/volt) for the UI primitives
 - A Nerd Font for the icons
+- Optional: [base46](https://github.com/NvChad/base46) for theme-aware colors.
+  Without it the UI falls back to colors derived from the active colorscheme.
 
 ## Installation
 
@@ -50,6 +52,8 @@ require("jmist").is_open()
 | ------------- | ----------------------------------- |
 | `j` / `k`     | Move selection or scroll output     |
 | `g` / `G`     | Jump to first or last item          |
+| `<C-d>` / `<C-u>` | Next or previous page           |
+| `<PageDown>` / `<PageUp>` | Next or previous page    |
 | `h` / `l`     | Previous or next tab                |
 | `1` `2` `3`   | Dependencies, Search, Output        |
 | `<Tab>`       | Next tab                            |
@@ -59,7 +63,9 @@ require("jmist").is_open()
 | `y`           | Copy the current build command      |
 | `q` / `<Esc>` | Close                               |
 
-Tabs, result rows, and the install action are also clickable.
+Tabs, result rows, the install action, and the pagination chevrons are also
+clickable. Hovering a row highlights it, shows a Nerd Font pointer, and previews
+its coordinates, version, scope, and kind in the footer.
 
 ## Configuration
 
@@ -101,7 +107,7 @@ lua/jmist/
 ├── layout.lua        Declarative Volt sections
 ├── windows.lua       Float geometry
 ├── keymaps.lua       Buffer-local keymaps
-├── highlights.lua    Colorscheme-derived highlight groups
+├── highlights.lua    base46-aware highlight groups
 ├── icons.lua         Nerd Font codepoints
 ├── util.lua          Scroll and clamp helpers
 └── ui/
@@ -110,6 +116,7 @@ lua/jmist/
     ├── demo.lua      Placeholder data
     ├── deps.lua      Dependency table
     ├── search.lua    Search input and results
+    ├── table.lua     Cursor/hover styles and pagination chrome
     ├── output.lua    Build log stream
     ├── header.lua
     ├── tabs.lua
@@ -118,3 +125,15 @@ lua/jmist/
 
 Views are pure functions over `state`; only `actions.lua` and `app.lua` mutate
 state and request redraws.
+
+## Theme
+
+When base46 is available, jmist reads the palette compiled for the active theme
+(`vim.g.base46_cache .. "colors"`) and uses it for every highlight group. The
+keyboard cursor row mirrors NvChad's `PmenuSel` (`pmenu_bg` on `black`), hovered
+rows use `one_bg2`, and borders and pagination controls use `blue`.
+
+Outside NvChad, the groups are derived from the active colorscheme (`Normal`,
+`PmenuSel`, `Comment`, `Diagnostic*`, and friends), so the UI still matches the
+editor. Changing the colorscheme while jmist is open re-renders with the new
+colors.

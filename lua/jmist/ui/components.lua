@@ -105,6 +105,41 @@ M.ellipsize = function(text, width)
   return fitted .. "…"
 end
 
+--- Truncates a line to an exact display width, preserving its highlights.
+--- @param line table
+--- @param width number
+--- @return table
+M.clip = function(line, width)
+  local result = {}
+  local used = 0
+
+  for _, fragment in ipairs(line) do
+    local text = fragment[1]
+    local text_width = M.strw(text)
+
+    if used + text_width <= width then
+      result[#result + 1] = { text, fragment[2] or "Normal", fragment[3] }
+      used = used + text_width
+    else
+      local remaining = width - used
+
+      if remaining > 0 then
+        local fitted = M.truncate(text, remaining - 1)
+        result[#result + 1] = { fitted .. "…", fragment[2] or "Normal", fragment[3] }
+        used = width
+      end
+
+      break
+    end
+  end
+
+  if used < width then
+    result[#result + 1] = { string.rep(" ", width - used), "Normal" }
+  end
+
+  return result
+end
+
 --- Builds a line with left and right aligned content.
 --- The right side is dropped when there is no room for at least one space.
 M.row = function(width, left, right)

@@ -58,6 +58,22 @@ M.attach = function(buf)
     actions().last()
   end, act "last item")
 
+  map("n", "<C-d>", function()
+    actions().page(1)
+  end, act "next page")
+
+  map("n", "<PageDown>", function()
+    actions().page(1)
+  end, act "next page")
+
+  map("n", "<C-u>", function()
+    actions().page(-1)
+  end, act "previous page")
+
+  map("n", "<PageUp>", function()
+    actions().page(-1)
+  end, act "previous page")
+
   map("n", "h", function()
     actions().prev_tab()
   end, act "previous tab")

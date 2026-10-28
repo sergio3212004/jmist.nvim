@@ -37,6 +37,11 @@ local function list_length()
   return #state.output.lines
 end
 
+--- Volt keeps the hovered id global; clear it when the pointer context changes.
+local function clear_hover()
+  vim.g.nvmark_hovered = nil
+end
+
 --- Places the cursor on the selected row so <CR> and mouse actions feel natural.
 M.sync_cursor = function()
   if not is_open() then
@@ -58,7 +63,14 @@ M.sync_cursor = function()
 end
 
 M.set_tab = function(tab)
-  if not vim.tbl_contains(state.tabs, tab) or state.tab == tab then
+  if not vim.tbl_contains(state.tabs, tab) then
+    return
+  end
+
+  clear_hover()
+
+  if state.tab == tab then
+    redraw { "body", "footer" }
     return
   end
 
@@ -100,6 +112,8 @@ M.prev_tab = function()
 end
 
 M.next = function(step)
+  clear_hover()
+
   if state.tab == "output" then
     local total = #state.output.lines
     state.scroll = util.clamp(state.scroll + step, 0, math.max(0, total - visible_rows()))
@@ -118,6 +132,8 @@ M.next = function(step)
 end
 
 M.first = function()
+  clear_hover()
+
   if state.tab == "output" then
     state.scroll = 0
   else
@@ -131,6 +147,8 @@ M.first = function()
 end
 
 M.last = function()
+  clear_hover()
+
   if state.tab == "output" then
     local total = #state.output.lines
     state.scroll = math.max(0, total - visible_rows())
@@ -148,6 +166,25 @@ M.last = function()
   redraw { "body", "footer" }
 end
 
+--- Moves the viewport (and selection) by one visible page.
+M.page = function(step)
+  clear_hover()
+
+  local total = list_length()
+  local visible = visible_rows()
+  local max_scroll = math.max(0, total - visible)
+
+  state.scroll = util.clamp(state.scroll + step * visible, 0, max_scroll)
+
+  if state.tab ~= "output" and total > 0 then
+    state.selected = util.clamp(state.scroll + 1, 1, total)
+  end
+
+  state.status = nil
+  M.sync_cursor()
+  redraw { "body", "footer" }
+end
+
 M.select_dependency = function(index)
   local total = #state.dependencies
 
@@ -155,6 +192,7 @@ M.select_dependency = function(index)
     return
   end
 
+  clear_hover()
   state.selected = util.clamp(index or state.selected, 1, total)
   state.scroll = util.clamp_scroll(state.scroll, state.selected, visible_rows(), total)
   state.status = nil
@@ -170,6 +208,7 @@ M.select_result = function(index)
     return
   end
 
+  clear_hover()
   state.selected = util.clamp(index or state.selected, 1, total)
   state.scroll = util.clamp_scroll(state.scroll, state.selected, visible_rows(), total)
   state.status = nil
@@ -185,6 +224,7 @@ M.toggle_install = function(index)
     return
   end
 
+  clear_hover()
   result.installed = not result.installed
   state.selected = index
   state.scroll = util.clamp_scroll(state.scroll, state.selected, visible_rows(), #state.search.results)
@@ -208,6 +248,8 @@ M.toggle_install = function(index)
 end
 
 M.activate = function()
+  clear_hover()
+
   if state.tab == "dependencies" then
     local dependency = state.dependencies[state.selected]
 
@@ -230,6 +272,7 @@ M.activate = function()
 end
 
 M.refresh = function()
+  clear_hover()
   local text
 
   if state.tab == "dependencies" then
@@ -245,6 +288,7 @@ M.refresh = function()
 end
 
 M.copy_command = function()
+  clear_hover()
   local command = state.output.command
 
   if not command or command == "" then

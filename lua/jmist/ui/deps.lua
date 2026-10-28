@@ -1,8 +1,9 @@
--- Dependencies view: a fixed-height table with selection and scrolling.
+-- Dependencies view: a fixed-height table with selection, hover and scrolling.
 
 local state = require "jmist.state"
 local icons = require "jmist.icons"
 local c = require "jmist.ui.components"
+local table_view = require "jmist.ui.table"
 local util = require "jmist.util"
 
 local M = {}
@@ -12,22 +13,6 @@ M.LIST_OFFSET = 2
 local VERSION_W = 12
 local SCOPE_W = 10
 local KIND_W = 10
-
-local SELECTION_HL = {
-  JmistAccent = "JmistSelIcon",
-  JmistMuted = "JmistSelMuted",
-  JmistValue = "JmistSelValue",
-  JmistScope = "JmistSelScope",
-  JmistDirect = "JmistSelDirect",
-}
-
-local function column_hl(selected, base)
-  if not selected then
-    return base or "Normal"
-  end
-
-  return SELECTION_HL[base] or "JmistSelText"
-end
 
 local function header_line(name_width)
   return {
@@ -40,25 +25,28 @@ local function header_line(name_width)
   }
 end
 
-local function dependency_line(dep, index, selected, name_width)
+local function dependency_line(dep, index, mode, name_width)
   local kind_hl = dep.kind == "direct" and "JmistDirect" or "JmistMuted"
   local name = c.ellipsize(dep.group .. ":" .. dep.artifact, name_width)
 
   local line = {
-    { selected and icons.chevron_right or icons.package, column_hl(selected, nil) },
-    { " ", column_hl(selected, nil) },
-    { c.fit(name, name_width), column_hl(selected, nil) },
-    { " ", column_hl(selected, nil) },
-    { c.fit(dep.version, VERSION_W), column_hl(selected, "JmistValue") },
-    { c.fit(dep.scope, SCOPE_W), column_hl(selected, "JmistScope") },
-    { c.fit(dep.kind, KIND_W), column_hl(selected, kind_hl) },
+    { table_view.icon(mode), table_view.icon_hl(mode) },
+    { " ", table_view.hl(mode, nil) },
+    { c.fit(name, name_width), table_view.hl(mode, nil) },
+    { " ", table_view.hl(mode, nil) },
+    { c.fit(dep.version, VERSION_W), table_view.hl(mode, "JmistValue") },
+    { c.fit(dep.scope, SCOPE_W), table_view.hl(mode, "JmistScope") },
+    { c.fit(dep.kind, KIND_W), table_view.hl(mode, kind_hl) },
   }
+
+  local hover = table_view.hover("dep", index)
 
   for _, fragment in ipairs(line) do
     fragment[3] = {
       click = function()
         require("jmist.actions").select_dependency(index)
       end,
+      hover = hover,
     }
   end
 
@@ -76,7 +64,11 @@ M.lines = function()
 
   local lines = {
     header_line(name_width),
-    c.separator(width),
+    table_view.separator(width, {
+      kind = "dep",
+      can_prev = scroll > 0,
+      can_next = scroll + visible < total,
+    }),
   }
 
   if total == 0 then
@@ -86,7 +78,8 @@ M.lines = function()
     }
   else
     for index = scroll + 1, math.min(total, scroll + visible) do
-      lines[#lines + 1] = dependency_line(state.dependencies[index], index, index == selected, name_width)
+      local mode = table_view.mode("dep", index, index == selected)
+      lines[#lines + 1] = dependency_line(state.dependencies[index], index, mode, name_width)
     end
   end
 

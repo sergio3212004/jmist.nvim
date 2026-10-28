@@ -46,6 +46,24 @@ local function install_close_autocmd(win)
       end)
     end,
   })
+
+  api.nvim_create_autocmd("WinLeave", {
+    group = group,
+    buffer = state.buf,
+    callback = function()
+      if not vim.g.nvmark_hovered then
+        return
+      end
+
+      vim.g.nvmark_hovered = nil
+
+      vim.schedule(function()
+        if M.is_open() then
+          require("volt").redraw(state.buf, { "body", "footer" })
+        end
+      end)
+    end,
+  })
 end
 
 M.open = function()
@@ -56,6 +74,7 @@ M.open = function()
 
   require("jmist.highlights").setup()
   require("jmist.ui.demo").apply(state)
+  vim.g.nvmark_hovered = nil
 
   local cfg = config.get()
   local geometry = windows.main()
@@ -79,7 +98,7 @@ M.open = function()
   vim.wo[state.win].wrap = false
   vim.wo[state.win].cursorline = false
   vim.wo[state.win].signcolumn = "no"
-  vim.wo[state.win].winhighlight = "Normal:NormalFloat,FloatBorder:FloatBorder"
+  vim.wo[state.win].winhighlight = "Normal:JmistNormal,FloatBorder:JmistBorder,FloatTitle:JmistFloatTitle"
 
   local volt = require "volt"
 
@@ -105,6 +124,7 @@ M.close = function()
   end
 
   state.closing = true
+  vim.g.nvmark_hovered = nil
 
   local win = state.win
   local buf = state.buf

@@ -228,6 +228,10 @@ M.setup = function()
   set("JmistPage", { fg = p.page })
   set("JmistPageOff", { fg = p.page_off })
   set("JmistPageHover", { fg = p.page_hover, bold = true })
+
+  -- Fully transparent cursor: jmist draws its own selection row, so the real
+  -- cursor is hidden while the window is focused.
+  set("JmistHiddenCursor", { blend = 100, nocombine = true })
 end
 
 return M

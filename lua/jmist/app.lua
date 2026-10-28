@@ -13,6 +13,39 @@ M.is_open = function()
   return state.win ~= nil and api.nvim_win_is_valid(state.win) and state.buf ~= nil and api.nvim_buf_is_valid(state.buf)
 end
 
+local HIDDEN_CURSOR = "a:JmistHiddenCursor"
+local FILETYPE = "jmist"
+
+--- Hides the real cursor while jmist is focused. The plugin draws its own
+--- selection row, so a block cursor would only cover the highlighted text.
+local function hide_cursor()
+  if state.guicursor == nil then
+    state.guicursor = vim.go.guicursor
+  end
+
+  if vim.go.guicursor ~= HIDDEN_CURSOR then
+    vim.go.guicursor = HIDDEN_CURSOR
+  end
+end
+
+--- Restores the cursor mode saved when the window opened.
+local function restore_cursor()
+  if state.guicursor ~= nil then
+    vim.go.guicursor = state.guicursor
+  end
+end
+
+--- Keeps animated cursor plugins from drawing their own block over the float.
+--- smear-cursor checks the current filetype, so jmist registers its filetype in
+--- the plugin's opt-out list when it is loaded.
+local function exclude_cursor_animations()
+  local ok, smear = pcall(require, "smear_cursor.config")
+
+  if ok and type(smear.filetypes_disabled) == "table" and not vim.tbl_contains(smear.filetypes_disabled, FILETYPE) then
+    table.insert(smear.filetypes_disabled, FILETYPE)
+  end
+end
+
 local function forget_volt(buf)
   local ok, volt_state = pcall(require, "volt.state")
 
@@ -31,7 +64,7 @@ local function forget_volt(buf)
   end
 end
 
-local function install_close_autocmd(win)
+local function install_session_autocmds(win)
   local group = api.nvim_create_augroup("JmistSession", { clear = true })
   state.augroup = group
 
@@ -51,6 +84,8 @@ local function install_close_autocmd(win)
     group = group,
     buffer = state.buf,
     callback = function()
+      restore_cursor()
+
       if not vim.g.nvmark_hovered then
         return
       end
@@ -62,6 +97,34 @@ local function install_close_autocmd(win)
           require("volt").redraw(state.buf, { "body", "footer" })
         end
       end)
+    end,
+  })
+
+  api.nvim_create_autocmd("WinEnter", {
+    group = group,
+    buffer = state.buf,
+    callback = function()
+      hide_cursor()
+    end,
+  })
+
+  -- The option is global and mode-based: while the command line is active the
+  -- real cursor must be visible again, then hidden when focus returns to jmist.
+  api.nvim_create_autocmd("CmdlineEnter", {
+    group = group,
+    callback = function()
+      if api.nvim_get_current_win() == state.win then
+        restore_cursor()
+      end
+    end,
+  })
+
+  api.nvim_create_autocmd("CmdlineLeave", {
+    group = group,
+    callback = function()
+      if api.nvim_get_current_win() == state.win then
+        hide_cursor()
+      end
     end,
   })
 end
@@ -99,6 +162,7 @@ M.open = function()
   vim.wo[state.win].cursorline = false
   vim.wo[state.win].signcolumn = "no"
   vim.wo[state.win].winhighlight = "Normal:JmistNormal,FloatBorder:JmistBorder,FloatTitle:JmistFloatTitle"
+  hide_cursor()
 
   local volt = require "volt"
 
@@ -112,9 +176,12 @@ M.open = function()
   }
 
   volt.run(state.buf, { h = geometry.height, w = geometry.width })
+  -- Volt sets its own filetype, so override it after the initial draw.
+  vim.bo[state.buf].filetype = FILETYPE
+  exclude_cursor_animations()
   require("volt.events").add(state.buf)
   require("jmist.keymaps").attach(state.buf)
-  install_close_autocmd(state.win)
+  install_session_autocmds(state.win)
   require("jmist.actions").sync_cursor()
 end
 
@@ -125,6 +192,8 @@ M.close = function()
 
   state.closing = true
   vim.g.nvmark_hovered = nil
+  restore_cursor()
+  state.guicursor = nil
 
   local win = state.win
   local buf = state.buf

@@ -9,6 +9,7 @@ local M = {
   augroup = nil,
   previous_win = nil,
   closing = false,
+  guicursor = nil,
 
   -- Geometry (set by app.open)
   width = 0,

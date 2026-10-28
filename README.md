@@ -67,6 +67,15 @@ Tabs, result rows, the install action, and the pagination chevrons are also
 clickable. Hovering a row highlights it, shows a Nerd Font pointer, and previews
 its coordinates, version, scope, and kind in the footer.
 
+While jmist is focused the Neovim cursor is hidden, so the selected row is the
+only cursor. The original `guicursor` is restored when the window loses focus or
+closes. Hiding relies on `'termguicolors'`, which Neovim enables automatically
+on terminals with truecolor support.
+
+The float uses the `jmist` filetype. When smear-cursor is loaded, jmist adds that
+filetype to `filetypes_disabled` so its animated cursor does not draw over the
+window. Other cursor-animation plugins can opt out with the same filetype.
+
 ## Configuration
 
 ```lua
